@@ -1,4 +1,4 @@
-package postscomments1
+package main
 
 type Config struct {
 	StorageType string

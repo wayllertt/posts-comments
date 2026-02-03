@@ -1,4 +1,4 @@
-package postscomments1
+package domain
 
 import (
 	"time"

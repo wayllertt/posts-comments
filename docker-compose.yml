@@ -8,7 +8,7 @@ services:
     environment:
       STORAGE_TYPE: ${STORAGE_TYPE}
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: 5433
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: comments
@@ -16,10 +16,10 @@ services:
       - postgres
 
   postgres:
-    image: postgres:15
+    image: postgres:18
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: comments
     ports:
-      - "5432:5432"
+      - "5433:5433"

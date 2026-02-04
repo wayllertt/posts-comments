@@ -1,25 +1,33 @@
 version: "3.9"
 
 services:
-  api:
+  app:
     build: .
+    container_name: posts-comments-app
     ports:
       - "8080:8080"
     environment:
-      STORAGE_TYPE: ${STORAGE_TYPE}
-      DB_HOST: postgres
-      DB_PORT: 5433
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: comments
+      STORAGE_TYPE: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: posts_comments
     depends_on:
       - postgres
 
   postgres:
-    image: postgres:18
+    image: postgres:16
+    container_name: posts-comments-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: comments
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: posts_comments
     ports:
-      - "5433:5433"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres_data:

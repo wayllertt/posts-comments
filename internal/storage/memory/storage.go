@@ -1,11 +1,15 @@
 package memory
 
 import (
+	"errors"
 	"fmt"
-	"posts_comments_1/internal/domain"
-
 	"github.com/google/uuid"
+	"posts_comments_1/internal/domain"
+	"sort"
 )
+
+var ErrPostNotFound = errors.New("post not found")
+var ErrCommentNotFound = errors.New("comment not found")
 
 type MemoryStorage struct {
 	posts    map[uuid.UUID]domain.Post
@@ -42,6 +46,9 @@ func (m *MemoryStorage) ListPosts(limit, offset int) ([]domain.Post, error) {
 
 // UpdatePost(post domain.Post) error
 func (m *MemoryStorage) UpdatePost(post domain.Post) error {
+	if _, ok := m.posts[post.ID]; !ok {
+		return ErrPostNotFound
+	}
 	m.posts[post.ID] = post
 	return nil
 }
@@ -51,3 +58,26 @@ func (m *MemoryStorage) DeletePost(id uuid.UUID) error { //+удаление к�
 	delete(m.posts, id)
 	return nil
 }
+
+// CreateComment(comment domain.Comment) error
+func (m *MemoryStorage) CreateComment(comment domain.Comment) error {
+	m.comments[comment.ID] = comment
+	return nil
+}
+
+// GetComment(id uuid.UUID) (*domain.Comment, error)
+func (m *MemoryStorage) GetComment(id uuid.UUID) (*domain.Comment, error) {
+	comment, ok := m.comments[id]
+	if !ok {
+		return nil, fmt.Errorf("comment not found")
+	}
+	return &comment, nil
+}
+
+// GetComments(postID uuid.UUID, limit, offset int) ([]domain.Comment, error)
+// func (m *MemoryStorage) GetComments(postID uuid.UUID, limit, offset int) ([]domain.Comment, error) {
+
+// }
+
+// UpdateComment(comment domain.Comment) error
+// DeleteComment(id uuid.UUID) error

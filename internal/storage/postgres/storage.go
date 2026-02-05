@@ -1,23 +1,30 @@
 package postgres
 
 import (
-	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func CheckConnection() {
-	ctx := context.Background()
+type PostgresStorage struct {
+	db *pgxpool.Pool
+}
 
-	con, err := pgx.Connect(ctx, "postgres://postgres:pass@localhost:5432/postgres")
-	if err != nil {
-		panic(err)
+func dsnFromEnv() string {
+	host := getenv("POSTGRES_HOST", "localhost")
+	port := getenv("POSTGRES_PORT", "5432")
+	user := getenv("POSTGRES_USER", "postgres")
+	pass := getenv("POSTGRES_PASSWORD", "pass")
+	db := getenv("POSTGRES_DB", "postgres")
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, db)
+}
+
+func getenv(key, def string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
 	}
-
-	if err := con.Ping(ctx); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("все ок")
-
+	return v
 }

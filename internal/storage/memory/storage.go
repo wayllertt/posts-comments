@@ -104,7 +104,7 @@ func (m *MemoryStorage) UpdatePost(post domain.Post) error {
 	return nil
 }
 
-func (m *MemoryStorage) DeletePost(id uuid.UUID) error { //+удаление коммов
+func (m *MemoryStorage) DeletePost(id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

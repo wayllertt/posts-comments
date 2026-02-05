@@ -1,7 +1,18 @@
 package main
 
-import "posts-comments-1/internal/storage/postgres"
+import (
+	"log"
+	"net/http"
+)
 
 func main() {
-	postgres.CheckConnection()
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	log.Println("server started on :8080")
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

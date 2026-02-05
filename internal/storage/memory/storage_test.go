@@ -277,3 +277,27 @@ func TestMemoryStorage_DeleteComment_NotFound(t *testing.T) {
 		t.Fatalf("expected ErrCommentNotFound, got %v", err)
 	}
 }
+
+func TestCreateComment_CommentsDisabled(t *testing.T) {
+	s := New()
+
+	p := domain.Post{
+		ID:              uuid.New(),
+		Title:           "t",
+		Content:         "c",
+		CommentsAllowed: false,
+	}
+
+	if err := s.CreatePost(p); err != nil {
+		t.Fatalf("CreatePost: %v", err)
+	}
+
+	err := s.CreateComment(domain.Comment{
+		PostID:   p.ID,
+		Content:  "hello",
+		ParentID: nil,
+	})
+	if !errors.Is(err, ErrCommentsDisabled) {
+		t.Fatalf("expected ErrCommentsDisabled, got %v", err)
+	}
+}

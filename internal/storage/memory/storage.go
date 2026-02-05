@@ -2,16 +2,21 @@ package memory
 
 import (
 	"errors"
-	"fmt"
-	"github.com/google/uuid"
 	"posts_comments_1/internal/domain"
+	"sort"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-var ErrPostNotFound = errors.New("post not found")
-var ErrCommentNotFound = errors.New("comment not found")
-var ErrCommentTooLong = errors.New("comment content exceeds maximum length")
+var (
+	ErrPostNotFound = errors.New("post not found")
+	ErrParentCommentWrongPost = errors.New("parent comment belongs to another post")
+	ErrCommentNotFound = errors.New("comment not found")
+	ErrCommentTooLong = errors.New("comment content exceeds maximum length")
+	ErrCommentsDisabled = errors.New("comments aredisabled")
+)
 
 type MemoryStorage struct {
 	posts          map[uuid.UUID]domain.Post
@@ -30,28 +35,68 @@ func New() *MemoryStorage {
 }
 
 func (m *MemoryStorage) CreatePost(post domain.Post) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if post.ID == uuid.Nil {
+		post.ID = uuid.New()
+	}
+	if post.CreatedAt.IsZero() {
+		post.CreatedAt = time.Now()
+	}
+
 	m.posts[post.ID] = post
 	return nil
 }
 
 func (m *MemoryStorage) GetPost(id uuid.UUID) (*domain.Post, error) {
+	m.mu.RLock()
+    defer m.mu.RUnlock()
+
 	post, ok := m.posts[id]
 	if !ok {
-		return nil, fmt.Errorf("post not found")
+		return nil, ErrPostNotFound
 	}
 	return &post, nil
 }
 
 func (m *MemoryStorage) ListPosts(limit, offset int) ([]domain.Post, error) {
-	posts := make([]domain.Post, 0)
-	for _, post := range m.posts {
-		posts = append(posts, post)
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if offset < 0 {
+		offset = 0
 	}
-	return posts, nil
+	if limit <= 0 {
+		return []domain.Post{}, nil
+	}
+
+	posts := make([]domain.Post, 0, len(m.posts))
+	for _, p := range m.posts {
+		posts = append(posts, p)
+	}
+
+	sort.Slice(posts, func(i, j int) bool {
+		if posts[i].CreatedAt.Equal(posts[j].CreatedAt) {
+			return posts[i].ID.String() < posts[j].ID.String()
+		}
+		return posts[i].CreatedAt.Before(posts[j].CreatedAt)
+	})
+
+	if offset >= len(posts) {
+		return []domain.Post{}, nil
+	}
+	end := offset + limit
+	if end > len(posts) {
+		end = len(posts)
+	}
+	return posts[offset:end], nil
 }
 
-// UpdatePost(post domain.Post) error
 func (m *MemoryStorage) UpdatePost(post domain.Post) error {
+	m.mu.Lock()
+    defer m.mu.Unlock()
+
 	if _, ok := m.posts[post.ID]; !ok {
 		return ErrPostNotFound
 	}
@@ -59,9 +104,21 @@ func (m *MemoryStorage) UpdatePost(post domain.Post) error {
 	return nil
 }
 
-// DeletePost(id uuid.UUID) error
 func (m *MemoryStorage) DeletePost(id uuid.UUID) error { //+удаление коммов
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.posts[id]; !ok {
+		return ErrPostNotFound
+	}
 	delete(m.posts, id)
+
+	ids := m.commentsByPost[id]
+	for _, cid := range ids {
+		delete(m.commentsByID, cid)
+	}
+	delete(m.commentsByPost, id)
+
 	return nil
 }
 
@@ -69,8 +126,27 @@ func (m *MemoryStorage) CreateComment(c domain.Comment) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	post, ok := m.posts[c.PostID]
+    if !ok {
+        return ErrPostNotFound
+    }
+    if !post.CommentsAllowed {
+        return ErrCommentsDisabled
+    }
+
 	if len(c.Content) > 2000 {
 		return ErrCommentTooLong
+	}
+
+	if c.ParentID != nil {
+		if c.ParentID != nil {
+			parent, ok := m.commentsByID[*c.ParentID]
+			if !ok {
+				return ErrCommentNotFound
+			}
+			if parent.PostID != c.PostID {
+				return ErrParentCommentWrongPost
+		}
 	}
 
 	if c.ID == uuid.Nil {
@@ -82,19 +158,18 @@ func (m *MemoryStorage) CreateComment(c domain.Comment) error {
 
 	m.commentsByID[c.ID] = c
 	m.commentsByPost[c.PostID] = append(m.commentsByPost[c.PostID], c.ID)
+
 	return nil
 }
 
-// GetComment(id uuid.UUID) (*domain.Comment, error)
 func (m *MemoryStorage) GetComment(id uuid.UUID) (*domain.Comment, error) {
 	comment, ok := m.commentsByID[id]
 	if !ok {
-		return nil, fmt.Errorf("comment not found")
+		return nil, ErrCommentNotFound
 	}
 	return &comment, nil
 }
 
-// GetComments(postID uuid.UUID, limit, offset int) ([]domain.Comment, error)
 func (m *MemoryStorage) GetComments(postID uuid.UUID, limit, offset int) ([]domain.Comment, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -130,7 +205,6 @@ func (m *MemoryStorage) GetComments(postID uuid.UUID, limit, offset int) ([]doma
 
 }
 
-// UpdateComment(comment domain.Comment) error
 func (m *MemoryStorage) UpdateComment(c domain.Comment) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -152,7 +226,6 @@ func (m *MemoryStorage) UpdateComment(c domain.Comment) error {
 	return nil
 }
 
-// DeleteComment(id uuid.UUID) error
 func (m *MemoryStorage) DeleteComment(id uuid.UUID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -179,5 +252,3 @@ func (m *MemoryStorage) DeleteComment(id uuid.UUID) error {
 	}
 	return nil
 }
-
-//+вложенные комментарии (индекс по parentID)

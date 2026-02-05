@@ -10,6 +10,7 @@ type Comment struct {
 	ID        uuid.UUID
 	PostID    uuid.UUID
 	AuthorID  uuid.UUID
+	ParentID  *uuid.UUID
 	Content   string
 	CreatedAt time.Time
 }

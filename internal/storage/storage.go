@@ -2,8 +2,7 @@ package storage
 
 import (
 	"github.com/google/uuid"
-	"posts_comments_1/internal/domain"
-	"time"
+	"posts-comments-1/internal/domain"
 )
 
 type Storage interface {

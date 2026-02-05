@@ -1,4 +1,4 @@
-module posts_comments_1
+module posts-comments-1
 
 go 1.24.1
 

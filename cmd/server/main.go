@@ -1,6 +1,6 @@
 package main
 
-import "posts_comments_1/internal/storage/postgres"
+import "posts-comments-1/internal/storage/postgres"
 
 func main() {
 	postgres.CheckConnection()

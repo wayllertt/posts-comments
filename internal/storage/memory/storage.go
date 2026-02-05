@@ -2,7 +2,7 @@ package memory
 
 import (
 	"errors"
-	"posts_comments_1/internal/domain"
+	"posts-comments-1/internal/domain"
 	"sort"
 	"sync"
 	"time"
@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	ErrPostNotFound = errors.New("post not found")
+	ErrPostNotFound           = errors.New("post not found")
 	ErrParentCommentWrongPost = errors.New("parent comment belongs to another post")
-	ErrCommentNotFound = errors.New("comment not found")
-	ErrCommentTooLong = errors.New("comment content exceeds maximum length")
-	ErrCommentsDisabled = errors.New("comments aredisabled")
+	ErrCommentNotFound        = errors.New("comment not found")
+	ErrCommentTooLong         = errors.New("comment content exceeds maximum length")
+	ErrCommentsDisabled       = errors.New("comments aredisabled")
 )
 
 type MemoryStorage struct {
@@ -51,7 +51,7 @@ func (m *MemoryStorage) CreatePost(post domain.Post) error {
 
 func (m *MemoryStorage) GetPost(id uuid.UUID) (*domain.Post, error) {
 	m.mu.RLock()
-    defer m.mu.RUnlock()
+	defer m.mu.RUnlock()
 
 	post, ok := m.posts[id]
 	if !ok {
@@ -95,7 +95,7 @@ func (m *MemoryStorage) ListPosts(limit, offset int) ([]domain.Post, error) {
 
 func (m *MemoryStorage) UpdatePost(post domain.Post) error {
 	m.mu.Lock()
-    defer m.mu.Unlock()
+	defer m.mu.Unlock()
 
 	if _, ok := m.posts[post.ID]; !ok {
 		return ErrPostNotFound
@@ -127,25 +127,24 @@ func (m *MemoryStorage) CreateComment(c domain.Comment) error {
 	defer m.mu.Unlock()
 
 	post, ok := m.posts[c.PostID]
-    if !ok {
-        return ErrPostNotFound
-    }
-    if !post.CommentsAllowed {
-        return ErrCommentsDisabled
-    }
+	if !ok {
+		return ErrPostNotFound
+	}
+	if !post.CommentsAllowed {
+		return ErrCommentsDisabled
+	}
 
 	if len(c.Content) > 2000 {
 		return ErrCommentTooLong
 	}
 
 	if c.ParentID != nil {
-		if c.ParentID != nil {
-			parent, ok := m.commentsByID[*c.ParentID]
-			if !ok {
-				return ErrCommentNotFound
-			}
-			if parent.PostID != c.PostID {
-				return ErrParentCommentWrongPost
+		parent, ok := m.commentsByID[*c.ParentID]
+		if !ok {
+			return ErrCommentNotFound
+		}
+		if parent.PostID != c.PostID {
+			return ErrParentCommentWrongPost
 		}
 	}
 
@@ -163,6 +162,9 @@ func (m *MemoryStorage) CreateComment(c domain.Comment) error {
 }
 
 func (m *MemoryStorage) GetComment(id uuid.UUID) (*domain.Comment, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	comment, ok := m.commentsByID[id]
 	if !ok {
 		return nil, ErrCommentNotFound

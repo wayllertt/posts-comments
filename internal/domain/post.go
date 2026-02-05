@@ -9,7 +9,7 @@ import (
 type Post struct {
 	ID              uuid.UUID
 	Title           string
-	Author          uuid.UUID
+	AuthorID          uuid.UUID
 	Content         string
 	CreatedAt       time.Time
 	CommentsAllowed bool

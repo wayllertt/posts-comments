@@ -6,10 +6,9 @@ package graph
 
 import (
 	"context"
-	"time"
-
 	"posts-comments-1/graph/model"
 	"posts-comments-1/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,8 +19,19 @@ func (r *commentResolver) CreatedAt(ctx context.Context, obj *domain.Comment) (s
 }
 
 // CreatePost is the resolver for the createPost field.
-func (r *postResolver) CreatedAt(ctx context.Context, obj *domain.Post) (string, error) {
-	return obj.CreatedAt.Format(time.RFC3339), nil
+func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*domain.Post, error) {
+	p := domain.Post{
+		ID:              uuid.New(),
+		Title:           input.Title,
+		Content:         input.Content,
+		CommentsAllowed: input.CommentsAllowed,
+		CreatedAt:       time.Now(),
+	}
+
+	if err := r.Storage.CreatePost(p); err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 // SetCommentsAllowed is the resolver for the setCommentsAllowed field.
@@ -52,22 +62,26 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 	if err := r.Storage.CreateComment(c); err != nil {
 		return nil, err
 	}
+	r.publishComment(&c)
 	return &c, nil
 }
 
-func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*domain.Post, error) {
-	p := domain.Post{
-		ID:              uuid.New(),
-		Title:           input.Title,
-		Content:         input.Content,
-		CommentsAllowed: input.CommentsAllowed,
-		CreatedAt:       time.Now(),
-	}
+func (r *Resolver) publishComment(c *domain.Comment) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	if err := r.Storage.CreatePost(p); err != nil {
-		return nil, err
+	subs := r.subscribers[c.PostID]
+	for _, ch := range subs {
+		select {
+		case ch <- c:
+		default:
+		}
 	}
-	return &p, nil
+}
+
+// CreatePost is the resolver for the createPost field.
+func (r *postResolver) CreatedAt(ctx context.Context, obj *domain.Post) (string, error) {
+	return obj.CreatedAt.Format(time.RFC3339), nil
 }
 
 // Posts is the resolver for the posts field.
@@ -105,6 +119,42 @@ func (r *queryResolver) Comments(ctx context.Context, postID uuid.UUID, limit in
 	return out, nil
 }
 
+// CommentAdded is the resolver for the commentAdded field.
+func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID uuid.UUID) (<-chan *domain.Comment, error) {
+	ch := make(chan *domain.Comment, 16)
+
+	r.mu.Lock()
+	r.nextSubID++
+	id := r.nextSubID
+
+	if r.subscribers == nil {
+		r.subscribers = make(map[uuid.UUID]map[int]chan *domain.Comment)
+	}
+	if r.subscribers[postID] == nil {
+		r.subscribers[postID] = make(map[int]chan *domain.Comment)
+	}
+	r.subscribers[postID][id] = ch
+	r.mu.Unlock()
+
+	go func() {
+		<-ctx.Done()
+
+		r.mu.Lock()
+		if m := r.subscribers[postID]; m != nil {
+			if subCh, ok := m[id]; ok {
+				close(subCh)
+				delete(m, id)
+			}
+			if len(m) == 0 {
+				delete(r.subscribers, postID)
+			}
+		}
+		r.mu.Unlock()
+	}()
+
+	return ch, nil
+}
+
 // Comment returns CommentResolver implementation.
 func (r *Resolver) Comment() CommentResolver { return &commentResolver{r} }
 
@@ -117,7 +167,11 @@ func (r *Resolver) Post() PostResolver { return &postResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 type commentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type postResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

@@ -1,0 +1,41 @@
+scalar UUID
+
+type Post {
+  id: UUID!
+  title: String!
+  content: String!
+  commentsAllowed: Boolean!
+  createdAt: String!
+}
+
+type Comment {
+  id: UUID!
+  postID: UUID!
+  parentID: UUID
+  content: String!
+  createdAt: String!
+}
+
+type Query {
+  posts(limit: Int! = 20, offset: Int! = 0): [Post!]!
+  post(id: UUID!): Post
+  comments(postID: UUID!, limit: Int! = 50, offset: Int! = 0): [Comment!]!
+}
+
+input CreatePostInput {
+  title: String!
+  content: String!
+  commentsAllowed: Boolean! = true
+}
+
+input CreateCommentInput {
+  postID: UUID!
+  parentID: UUID
+  content: String!
+}
+
+type Mutation {
+  createPost(input: CreatePostInput!): Post!
+  setCommentsAllowed(postID: UUID!, allowed: Boolean!): Post!
+  createComment(input: CreateCommentInput!): Comment!
+}

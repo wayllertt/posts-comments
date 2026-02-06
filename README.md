@@ -25,3 +25,75 @@
 - Docker / docker-compose
 
 Для запуска: `docker compose up --build`
+
+### Примеры GraphQl запросов:
+Создать пост
+```
+mutation {
+  createPost(input: {
+    title: "Hello"
+    content: "Пост 1"
+    commentsAllowed: true
+  }) {
+    id
+    title
+    commentsAllowed
+    createdAt
+  }
+}
+```
+Получить список постов
+```
+query {
+  posts(limit: 10, offset: 0) {
+    id
+    title
+    commentsAllowed
+    createdAt
+  }
+}
+```
+Написать комментарий
+```
+mutation {
+  createComment(input: {
+    postID: "POST_ID"
+    content: "комментарий"
+  }) {
+    id
+    postID
+    parentID
+    content
+    createdAt
+  }
+}
+```
+Ответить на комментарий
+```
+mutation {
+  createComment(input: {
+    postID: "POST_ID"
+    parentID: "PARENT_COMMENT_ID"
+    content: "Ответ на комментарий"
+  }) {
+    id
+    parentID
+    content
+  }
+}
+```
+Запретить комментировать пост
+```
+mutation {
+  setCommentsAllowed(postID: "POST_ID", allowed: false) {
+    id
+    commentsAllowed
+  }
+}
+```
+
+### Unit-Тесты
+Покрытие: 75.8%
+
+### Subscriptions
+Заготовка есть, но полноценная реализация не доведена до конца из-за времени

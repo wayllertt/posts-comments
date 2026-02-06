@@ -42,10 +42,11 @@ func (r *mutationResolver) SetCommentsAllowed(ctx context.Context, postID uuid.U
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.CreateCommentInput) (*domain.Comment, error) {
 	c := domain.Comment{
-		ID:       uuid.New(),
-		PostID:   input.PostID,
-		ParentID: input.ParentID,
-		Content:  input.Content,
+		ID:        uuid.New(),
+		PostID:    input.PostID,
+		ParentID:  input.ParentID,
+		Content:   input.Content,
+		CreatedAt: time.Now(),
 	}
 
 	if err := r.Storage.CreateComment(c); err != nil {
@@ -60,6 +61,7 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 		Title:           input.Title,
 		Content:         input.Content,
 		CommentsAllowed: input.CommentsAllowed,
+		CreatedAt:       time.Now(),
 	}
 
 	if err := r.Storage.CreatePost(p); err != nil {

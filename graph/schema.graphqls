@@ -39,3 +39,7 @@ type Mutation {
   setCommentsAllowed(postID: UUID!, allowed: Boolean!): Post!
   createComment(input: CreateCommentInput!): Comment!
 }
+
+type Subscription {
+  commentAdded(postID: UUID!): Comment!
+}
